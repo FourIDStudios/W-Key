@@ -6,4 +6,5 @@ realm = "shared"
 
 [dependencies]
 Knit = "sleitnick/knit@^1.7"
+signal = "sleitnick/signal@2.0.3"
 cmdr = "evaera/cmdr@1.12.0"

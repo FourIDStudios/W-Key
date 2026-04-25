@@ -17,7 +17,7 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
-local TiltHandler = require(ReplicatedStorage.Packages.TiltHandler)
+local TiltHandler = require(ReplicatedStorage.Shared.Classes.TiltHandler)
 
 local CharacterRuntime = require(ReplicatedStorage.Shared.Classes.CharacterRuntime)
 
