@@ -8,7 +8,7 @@ local PackageFunctions = {
 	Knit = {
 		OnStart = function()
 			print(`[ServerManager]: Loading Services...`)
-			Knit.AddServicesDeep(script:WaitForChild("services"))
+			Knit.AddServicesDeep(script:WaitForChild("Services"))
 			Knit.Start()
 				:andThen(function()
 					print("[ServerManager]: Knit Started")

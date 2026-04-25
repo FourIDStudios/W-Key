@@ -11,38 +11,40 @@ local Player = Players.LocalPlayer
 
 local DataController = Knit.CreateController({
 	Name = "DataController",
+	DataService = nil,
+	LocalData = {},
 	Events = {
 		OnDataChanged = {},
 	},
 })
 
-DataController._dataService = nil
-DataController._localData = {}
-
 function DataController:KnitInit() end
 
+--[[
+	Starts The DataController, And Observes The DataService.Data Property.
+	When The DataService.Data Property Changes, The DataController Will Fire The OnDataChanged Event.
+]]
 function DataController:KnitStart()
 	self._dataService = Knit.GetService("PlayerDataService")
 	self._dataService.Data:Observe(function(data)
-		-- Same Data as last time, don't fire observers.
-		if data == self._localData then
-			return
-		end
-		if not data then
+		-- Naieve diff check, realistically i'm not sure if this is checkign memory addresses or content equality
+		if data == self.LocalData then
 			return
 		end
 
 		print(`[CDC] ${Player.DisplayName} GlobalProfile changed:`, data)
-		self._oldData = self._localData
-		self._localData = data
+		-- Server sends a clone of the data, so we can just assign it to our local data
+		self.LocalData = data
 
 		-- Fire DataChanged Event
-		self:FireEvent("OnDataChanged", self._localData)
+		self:FireEvent("OnDataChanged", self.LocalData)
 	end)
 end
 
 --[[
 	Fires Specific Events, Given EventName & Data
+	Intended to use as a way of extending the data events, for more specific use cases
+	i.e an update specifically to the inventory, or the character, etc.
 --]]
 function DataController:FireEvent(EventName: string, Data: any)
 	if not self.Events[EventName] then
@@ -83,7 +85,7 @@ function DataController:Subscribe(SubscriberId, callback: () -> (), Event: strin
 		return
 	end
 	self.Events[Event][SubscriberId] = callback
-	self:FireEventTo(SubscriberId, Event or "OnDataChanged", self._localData)
+	self:FireEventTo(SubscriberId, Event, self.LocalData)
 end
 
 -- Unsubscribe from DataController updates.
