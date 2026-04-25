@@ -10,12 +10,17 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Player = Players.LocalPlayer
 
 local DataController = Knit.CreateController({
+	-- Public Properties
 	Name = "DataController",
-	DataService = nil,
-	LocalData = {},
+	Data = {},
 	Events = {
 		OnDataChanged = {},
 	},
+
+	-- Private Properies
+	_dataService = nil,
+	_oldData = {},
+	_dubugEnabled = false,
 })
 
 function DataController:KnitInit() end
@@ -26,29 +31,27 @@ function DataController:KnitInit() end
 ]]
 function DataController:KnitStart()
 	self._dataService = Knit.GetService("PlayerDataService")
-	self._dataService.Data:Observe(function(data)
+	self._dataService.Data:Observe(function(newData)
 		-- Naieve diff check, realistically i'm not sure if this is checkign memory addresses or content equality
-		if data == self.LocalData then
+		if newData == self.Data then
 			return
 		end
 
-		print(`[CDC] ${Player.DisplayName} GlobalProfile changed:`, data)
-		-- Server sends a clone of the data, so we can just assign it to our local data
-		self.LocalData = data
+		self:Debug(`[CDC] ${Player.DisplayName} GlobalProfile changed:`, newData)
+		self._oldData = self.data
+		self.data = newData
 
 		-- Fire DataChanged Event
-		self:FireEvent("OnDataChanged", self.LocalData)
+		self:FireEvent("OnDataChanged", self.data)
 	end)
 end
 
 --[[
 	Fires Specific Events, Given EventName & Data
-	Intended to use as a way of extending the data events, for more specific use cases
-	i.e an update specifically to the inventory, or the character, etc.
 --]]
 function DataController:FireEvent(EventName: string, Data: any)
 	if not self.Events[EventName] then
-		warn(`[DataController] Attempt To Fire An Event, That Does Not Exist: {EventName}`)
+		self:Debug(`[DataController] Attempt To Fire An Event, That Does Not Exist: {EventName}`)
 		return
 	end
 
@@ -60,32 +63,37 @@ end
 
 function DataController:FireEventTo(SubscriberId, Event, Data: any)
 	if not self.Events[Event] then
-		warn("Attempt To Fire An Event, That Does Not Exist")
+		self:Debug("Attempt To Fire An Event, That Does Not Exist")
 		return
 	end
 	if not self.Events[Event][SubscriberId] then
-		warn("Attempt To Fire An Event, To A Subscriber That Does Not Exist")
+		self:Debug("Attempt To Fire An Event, To A Subscriber That Does Not Exist")
 		return
 	end
 
 	self.Events[Event][SubscriberId](Data)
 end
 
---- Subscribes to GlobalProfile updates. Fires immediately with current value and on every change. Callback receives GlobalProfile (read-only).
---- @param callback (globalProfile: PlayerData.GlobalProfile?) -> ()
---- @return () disconnect
-function DataController:Subscribe(SubscriberId, callback: () -> (), Event: string?)
-	print(`[DataController] {SubscriberId} Subscribing To Event: `, Event or "OnDataChanged")
+--[[
+	Subscribes to GlobalProfile updates. Fires immediately with current value and on every change. Callback receives GlobalProfile (read-only).
+]]
+function DataController:Subscribe(SubscriberId: string, callback: (any) -> (), Event: string?): () -> ()
+	self:Debug(`[DataController] {SubscriberId} Subscribing To Event: `, Event or "OnDataChanged")
 	if Event and not self.Events[Event] then
-		warn("Attempt To Subscribe To Event That Doesnt Exist")
-		return
+		self:Debug("Attempt To Subscribe To Event That Doesnt Exist")
+		return function() end
 	end
 	if not Event then
-		warn(`[DataController] {SubscriberId} Attempting To Subscribe To OnDataChanged Event, Without Specifying It`)
-		return
+		self:Debug(
+			`[DataController] {SubscriberId} Attempting To Subscribe To OnDataChanged Event, Without Specifying It`
+		)
+		return function() end
 	end
 	self.Events[Event][SubscriberId] = callback
-	self:FireEventTo(SubscriberId, Event, self.LocalData)
+	self:FireEventTo(SubscriberId, Event or "OnDataChanged", self._localData)
+	return function()
+		self:Unsubscribe(SubscriberId, Event)
+	end
 end
 
 -- Unsubscribe from DataController updates.
@@ -104,6 +112,12 @@ function DataController:Unsubscribe(SubscriberId, Event: string?)
 
 	-- Remove Event From Callback List
 	self.Events[Event][SubscriberId] = nil
+end
+
+function DataController:Debug(...: any)
+	if self._debugEnabled then
+		print("[DataController]: ", ...)
+	end
 end
 
 return DataController
