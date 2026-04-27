@@ -14,4 +14,12 @@ Next, open `W-Key.rbxlx` in Roblox Studio and start the Rojo server:
 rojo serve
 ```
 
+#  Memo
+Beginning the task with an emphasis on server-side performance my immediate thought was figuring out "What information does the server truly need", I settled on position and some table of meta-data to be my initial approach. My idea was to have a simple system where the npc ran up to you upon entering that 50 stud range, had some message interaction then return to his original location.
+
+On The technical side plan was simply to have the server own position,rotation, and some context:{} with relevant information. I settled on representing the indivdiual models as attachments because of it's ease to visualize while running and the fact that it already holds the information I'm looking for (position,orientation) without any extra unecessary fluff.
+With the server owning a simple attachment, i would visualize all interactions/etc on the client, that would mean everything from movement to animations would be client "generated". I knew however that i did not want to pass through information like moveSpeed, animation state, etc as that would include the payload snapshot i'd be sending to keep the clients in sync. My approach to combat this need was utilizing my own "context-based" systems, with position and some timestamp i could easily derive the users movespeed, heading direction etc. This also meant that i could remove rotation from the snapshot information With my sensor/context based animation system all it needs is positional information to accurately replicate X characters state, be it idle, walking, running, jumping falling. So i stripped a variety of my old systems and refactored them into generics (previously they worked under the assumption that it was being applied to the player). The modularity of the system allowed it to slot inperfectly with little changes. Though admittedly i didn't do a complete clean-up so sections like the input-provider might be uncessary for the npc at the very least.
+
+That pretty much covers this approach, I defined npc types with an attribute, and had a Registry that supplied relevant information like what does a beggar say, how far can he look, how close does he get before he greets etc. I did a optimization pass that included quantizing the positional information i was sending and having distance based culling on the client side. before packing things up and sending it in.
+
 For more help, check out [the Rojo documentation](https://rojo.space/docs).
